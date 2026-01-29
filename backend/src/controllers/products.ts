@@ -6,6 +6,7 @@ import BadRequestError from '../errors/bad-request-error'
 import ConflictError from '../errors/conflict-error'
 import NotFoundError from '../errors/not-found-error'
 import Product from '../models/product'
+import escapeHtml from '../utils/escapeHtml'
 import movingFile from '../utils/movingFile'
 
 // GET /product
@@ -41,6 +42,10 @@ const createProduct = async (
 ) => {
     try {
         const { description, category, price, title, image } = req.body
+        const safeTitle = typeof title === 'string' ? escapeHtml(title) : title
+        const safeCategory = typeof category === 'string' ? escapeHtml(category) : category
+        const safeDescription = typeof description === 'string' ? escapeHtml(description) : description
+
 
         // Переносим картинку из временной папки
         if (image) {
@@ -52,11 +57,11 @@ const createProduct = async (
         }
 
         const product = await Product.create({
-            description,
+            description: safeDescription,
             image,
-            category,
+            category: safeCategory,
             price,
-            title,
+            title: safeTitle,
         })
         return res.status(constants.HTTP_STATUS_CREATED).send(product)
     } catch (error) {

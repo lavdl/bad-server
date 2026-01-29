@@ -10,6 +10,9 @@ export const uploadFile = async (
     if (!req.file) {
         return next(new BadRequestError('Файл не загружен'))
     }
+    if (req.file.size < 2048) {
+    return next(new BadRequestError('Файл слишком маленький'))
+}
     try {
         const fileName = process.env.UPLOAD_PATH
             ? `/${process.env.UPLOAD_PATH}/${req.file.filename}`
@@ -19,6 +22,9 @@ export const uploadFile = async (
             originalName: req.file?.originalname,
         })
     } catch (error) {
+        if (error && typeof error === 'object' && (error as any).code === 'LIMIT_FILE_SIZE') {
+            return next(new BadRequestError('Файл слишком большой'))
+        }
         return next(error)
     }
 }

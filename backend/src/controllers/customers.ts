@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express'
 import { FilterQuery } from 'mongoose'
 import NotFoundError from '../errors/not-found-error'
 import Order from '../models/order'
+import escapeRegExp from '../utils/escapeRegExp'
 import User, { IUser } from '../models/user'
 
 // TODO: Добавить guard admin
@@ -91,22 +92,24 @@ export const getCustomers = async (
             }
         }
 
-        if (search) {
-            const searchRegex = new RegExp(search as string, 'i')
-            const orders = await Order.find(
-                {
-                    $or: [{ deliveryAddress: searchRegex }],
-                },
-                '_id'
-            )
+if (search) {
+    const safeSearch = escapeRegExp(String(search))
+    const searchRegex = new RegExp(safeSearch, 'i')
 
-            const orderIds = orders.map((order) => order._id)
+    const orders = await Order.find(
+        {
+            $or: [{ deliveryAddress: searchRegex }],
+        },
+        '_id'
+    )
 
-            filters.$or = [
-                { name: searchRegex },
-                { lastOrder: { $in: orderIds } },
-            ]
-        }
+    const orderIds = orders.map((order) => order._id)
+
+    filters.$or = [
+        { name: searchRegex },
+        { lastOrder: { $in: orderIds } },
+    ]
+}
 
         const sort: { [key: string]: any } = {}
 
