@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express'
 import { FilterQuery } from 'mongoose'
 import NotFoundError from '../errors/not-found-error'
 import Order from '../models/order'
+import escapeRegExp from '../utils/escapeRegExp'
 import User, { IUser } from '../models/user'
 
 // TODO: Добавить guard admin
@@ -28,6 +29,11 @@ export const getCustomers = async (
             orderCountTo,
             search,
         } = req.query
+        const MAX_LIMIT = 10
+
+const pageNum = Math.max(1, Number(page) || 1)
+const requestedLimit = Number(limit) || 10
+const safeLimit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit))
 
         const filters: FilterQuery<Partial<IUser>> = {}
 
@@ -91,22 +97,24 @@ export const getCustomers = async (
             }
         }
 
-        if (search) {
-            const searchRegex = new RegExp(search as string, 'i')
-            const orders = await Order.find(
-                {
-                    $or: [{ deliveryAddress: searchRegex }],
-                },
-                '_id'
-            )
+if (search) {
+    const safeSearch = escapeRegExp(String(search))
+    const searchRegex = new RegExp(safeSearch, 'i')
 
-            const orderIds = orders.map((order) => order._id)
+    const orders = await Order.find(
+        {
+            $or: [{ deliveryAddress: searchRegex }],
+        },
+        '_id'
+    )
 
-            filters.$or = [
-                { name: searchRegex },
-                { lastOrder: { $in: orderIds } },
-            ]
-        }
+    const orderIds = orders.map((order) => order._id)
+
+    filters.$or = [
+        { name: searchRegex },
+        { lastOrder: { $in: orderIds } },
+    ]
+}
 
         const sort: { [key: string]: any } = {}
 
@@ -114,11 +122,12 @@ export const getCustomers = async (
             sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
         }
 
-        const options = {
-            sort,
-            skip: (Number(page) - 1) * Number(limit),
-            limit: Number(limit),
-        }
+const options = {
+  sort,
+  skip: (pageNum - 1) * safeLimit,
+  limit: safeLimit,
+}
+
 
         const users = await User.find(filters, null, options).populate([
             'orders',
@@ -137,15 +146,15 @@ export const getCustomers = async (
         ])
 
         const totalUsers = await User.countDocuments(filters)
-        const totalPages = Math.ceil(totalUsers / Number(limit))
+        const totalPages = Math.ceil(totalUsers / safeLimit)
 
         res.status(200).json({
             customers: users,
             pagination: {
                 totalUsers,
                 totalPages,
-                currentPage: Number(page),
-                pageSize: Number(limit),
+                currentPage: pageNum,
+                pageSize: safeLimit,
             },
         })
     } catch (error) {

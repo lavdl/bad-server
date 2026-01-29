@@ -7,6 +7,7 @@ import { REFRESH_TOKEN } from '../config'
 import BadRequestError from '../errors/bad-request-error'
 import ConflictError from '../errors/conflict-error'
 import NotFoundError from '../errors/not-found-error'
+import escapeHtml from '../utils/escapeHtml'
 import UnauthorizedError from '../errors/unauthorized-error'
 import User from '../models/user'
 
@@ -36,7 +37,9 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
 const register = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { email, password, name } = req.body
-        const newUser = new User({ email, password, name })
+        const safeName = typeof name === 'string' ? escapeHtml(name) : name
+        const safeEmail = typeof email === 'string' ? escapeHtml(email) : email
+        const newUser = new User({ email: safeEmail, password, name: safeName  })
         await newUser.save()
         const accessToken = newUser.generateAccessToken()
         const refreshToken = await newUser.generateRefreshToken()
