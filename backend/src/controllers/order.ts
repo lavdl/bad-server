@@ -29,6 +29,10 @@ export const getOrders = async (
             orderDateTo,
             search,
         } = req.query
+        const MAX_LIMIT = 10
+        const pageNum = Math.max(1, Number(page) || 1)
+        const requestedLimit = Number(limit) || 10
+        const safeLimit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit))
 
         const filters: FilterQuery<Partial<IOrder>> = {}
 
@@ -119,8 +123,8 @@ if (search) {
 
         aggregatePipeline.push(
             { $sort: sort },
-            { $skip: (Number(page) - 1) * Number(limit) },
-            { $limit: Number(limit) },
+{ $skip: (pageNum - 1) * safeLimit },
+{ $limit: safeLimit },
             {
                 $group: {
                     _id: '$_id',
@@ -136,15 +140,15 @@ if (search) {
 
         const orders = await Order.aggregate(aggregatePipeline)
         const totalOrders = await Order.countDocuments(filters)
-        const totalPages = Math.ceil(totalOrders / Number(limit))
+        const totalPages = Math.ceil(totalOrders / safeLimit)
 
         res.status(200).json({
             orders,
             pagination: {
                 totalOrders,
                 totalPages,
-                currentPage: Number(page),
-                pageSize: Number(limit),
+                currentPage: pageNum,
+                pageSize: safeLimit,
             },
         })
     } catch (error) {

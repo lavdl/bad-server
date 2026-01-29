@@ -29,6 +29,11 @@ export const getCustomers = async (
             orderCountTo,
             search,
         } = req.query
+        const MAX_LIMIT = 10
+
+const pageNum = Math.max(1, Number(page) || 1)
+const requestedLimit = Number(limit) || 10
+const safeLimit = Math.min(MAX_LIMIT, Math.max(1, requestedLimit))
 
         const filters: FilterQuery<Partial<IUser>> = {}
 
@@ -117,11 +122,12 @@ if (search) {
             sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
         }
 
-        const options = {
-            sort,
-            skip: (Number(page) - 1) * Number(limit),
-            limit: Number(limit),
-        }
+const options = {
+  sort,
+  skip: (pageNum - 1) * safeLimit,
+  limit: safeLimit,
+}
+
 
         const users = await User.find(filters, null, options).populate([
             'orders',
@@ -140,15 +146,15 @@ if (search) {
         ])
 
         const totalUsers = await User.countDocuments(filters)
-        const totalPages = Math.ceil(totalUsers / Number(limit))
+        const totalPages = Math.ceil(totalUsers / safeLimit)
 
         res.status(200).json({
             customers: users,
             pagination: {
                 totalUsers,
                 totalPages,
-                currentPage: Number(page),
-                pageSize: Number(limit),
+                currentPage: pageNum,
+                pageSize: safeLimit,
             },
         })
     } catch (error) {
